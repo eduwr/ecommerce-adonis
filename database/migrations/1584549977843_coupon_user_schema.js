@@ -2,9 +2,9 @@
 // eslint-disable-next-line no-undef
 const Schema = use('Schema')
 
-class CuponUserSchema extends Schema {
+class CouponUserSchema extends Schema {
   up() {
-    this.create('cupon_user', table => {
+    this.create('coupon_user', table => {
       table.increments()
       table.integer('coupon_id').unsigned()
       table.integer('user_id').unsigned()
@@ -25,8 +25,8 @@ class CuponUserSchema extends Schema {
   }
 
   down() {
-    this.drop('cupon_user')
+    this.drop('coupon_user')
   }
 }
 
-module.exports = CuponUserSchema
+module.exports = CouponUserSchema
