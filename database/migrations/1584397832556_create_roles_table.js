@@ -1,19 +1,24 @@
-'use strict'
-
+// eslint-disable-next-line no-undef
 const Schema = use('Schema')
 
 class RolesTableSchema extends Schema {
-  up () {
+  up() {
     this.create('roles', table => {
       table.increments()
-      table.string('slug').notNullable().unique()
-      table.string('name').notNullable().unique()
+      table
+        .string('slug')
+        .notNullable()
+        .unique()
+      table
+        .string('name')
+        .notNullable()
+        .unique()
       table.text('description').nullable()
       table.timestamps()
     })
   }
 
-  down () {
+  down() {
     this.drop('roles')
   }
 }
