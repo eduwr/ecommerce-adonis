@@ -1,6 +1,3 @@
-/* eslint-disable strict */
-/* eslint-disable no-undef */
-
 'use strict'
 
 /** @type {typeof import('@adonisjs/lucid/src/Lucid/Model')} */
