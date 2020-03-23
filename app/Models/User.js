@@ -1,5 +1,4 @@
-'use strict'
-
+/* eslint-disable no-undef */
 /** @type {typeof import('@adonisjs/lucid/src/Lucid/Model')} */
 const Model = use('Model')
 
@@ -7,21 +6,25 @@ const Model = use('Model')
 const Hash = use('Hash')
 
 class User extends Model {
-  static boot () {
+  static boot() {
     super.boot()
 
     /**
      * A hook to hash the user password before saving
      * it to the database.
      */
-    this.addHook('beforeSave', async (userInstance) => {
+    this.addHook('beforeSave', async userInstance => {
       if (userInstance.dirty.password) {
         userInstance.password = await Hash.make(userInstance.password)
       }
     })
   }
 
-  static get traits () {
+  static get hidden() {
+    return ['password']
+  }
+
+  static get traits() {
     return [
       '@provider:Adonis/Acl/HasRole',
       '@provider:Adonis/Acl/HasPermission'
@@ -38,8 +41,16 @@ class User extends Model {
    *
    * @return {Object}
    */
-  tokens () {
+  tokens() {
     return this.hasMany('App/Models/Token')
+  }
+
+  image() {
+    return this.belongsTo('App/Models/Image')
+  }
+
+  coupons() {
+    return this.belongsToMany('App/Models/Coupon')
   }
 }
 
