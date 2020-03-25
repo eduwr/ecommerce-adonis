@@ -22,6 +22,7 @@ module.exports = {
     "no-unused-vars": ["error", { "argsIgnorePattern": "next" }, ],
     "no-multi-assign": "off",
     "no-undef": "off",
-    "strict": "off"
+    "strict": "off",
+    "consistent-return": "off"
   }
 }
