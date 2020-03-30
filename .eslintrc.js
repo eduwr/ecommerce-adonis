@@ -23,6 +23,7 @@ module.exports = {
     "no-multi-assign": "off",
     "no-undef": "off",
     "strict": "off",
-    "consistent-return": "off"
+    "consistent-return": "off",
+    "no-restricted-syntax": "off"
   }
 }
