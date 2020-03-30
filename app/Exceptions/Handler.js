@@ -21,8 +21,14 @@ class ExceptionHandler extends BaseExceptionHandler {
    *
    * @return {void}
    */
-  async handle (error, { request, response }) {
-    response.status(error.status).send(error.message)
+  async handle(error, { response }) {
+    if (error.name === 'ValidationException') {
+      response.status(error.status).send({
+        errors: error.messages
+      })
+      return
+    }
+    response.status(error.status).send({ error: error.message })
   }
 
   /**
@@ -35,7 +41,7 @@ class ExceptionHandler extends BaseExceptionHandler {
    *
    * @return {void}
    */
-  async report (error, { request }) {
+  async report(error) {
     if (error.status >= 500) {
       Logger.error(error.message, {
         stack: error.stack,
