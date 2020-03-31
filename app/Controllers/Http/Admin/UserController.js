@@ -8,6 +8,7 @@
  * Resourceful controller for interacting with users
  */
 const User = use('App/Models/User')
+const Transformer = use('App/Transformers/Admin/UserTransformer')
 
 class UserController {
   /**
@@ -20,7 +21,7 @@ class UserController {
    * @param {View} ctx.view
    * @param { Object } ctx.pagination
    */
-  async index({ request, response, pagination }) {
+  async index({ request, response, pagination, transform }) {
     const name = request.input('name')
     const query = User.query()
     if (name) {
@@ -29,7 +30,8 @@ class UserController {
       query.orWhere('email', 'LIKE', `%${name}%`)
     }
     const { page, limit } = pagination
-    const users = await query.paginate(page, limit)
+    let users = await query.paginate(page, limit)
+    users = await transform.paginate(users, Transformer)
 
     return response.send(users)
   }
@@ -42,7 +44,7 @@ class UserController {
    * @param {Request} ctx.request
    * @param {Response} ctx.response
    */
-  async store({ request, response }) {
+  async store({ request, response, transform }) {
     try {
       const userData = request.only([
         'name',
@@ -51,7 +53,8 @@ class UserController {
         'password',
         'image_id'
       ])
-      const user = await User.create(userData)
+      let user = await User.create(userData)
+      user = await transform.item(user, Transformer)
       return response.status(201).send(user)
     } catch (error) {
       return response.status(400).send({ message: 'Bad Request' })
@@ -67,8 +70,9 @@ class UserController {
    * @param {Response} ctx.response
    * @param {View} ctx.view
    */
-  async show({ params: { id }, response }) {
-    const user = await User.findOrFail(id)
+  async show({ params: { id }, response, transform }) {
+    let user = await User.findOrFail(id)
+    user = await transform.item(user, Transformer)
     response.send(user)
   }
 
@@ -80,8 +84,8 @@ class UserController {
    * @param {Request} ctx.request
    * @param {Response} ctx.response
    */
-  async update({ params: { id }, request, response }) {
-    const user = await User.findOrFail(id)
+  async update({ params: { id }, request, response, transform }) {
+    let user = await User.findOrFail(id)
     const userData = request.only([
       'name',
       'surname',
@@ -91,6 +95,7 @@ class UserController {
     ])
     user.merge(userData)
     await user.save()
+    user = await transform.item(user, Transformer)
     return response.send(user)
   }
 

@@ -24,6 +24,7 @@ module.exports = {
     "no-undef": "off",
     "strict": "off",
     "consistent-return": "off",
-    "no-restricted-syntax": "off"
+    "no-restricted-syntax": "off",
+    "no-underscore-dangle": "off"
   }
 }

@@ -31,4 +31,4 @@ Route.group(() => {
 })
   .prefix('v1/admin')
   .namespace('Admin')
-// .middleware(['auth', 'is:(admin || manager)'])
+  .middleware(['auth', 'is:(admin || manager)'])
