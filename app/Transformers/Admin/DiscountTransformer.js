@@ -20,7 +20,7 @@ class DiscountTransformer extends BumblebeeTransformer {
   transform(model) {
     return {
       id: model.id,
-      amount: model.discount
+      discount: model.discount
     }
   }
 

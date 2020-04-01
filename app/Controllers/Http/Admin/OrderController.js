@@ -38,9 +38,9 @@ class OrderController {
       query.where('id', 'LIKE', `%${id}%`)
     }
 
-    let orders = await query.paginate(pagination.page, pagination.limit)
-    orders = await transform.paginate(orders, Transformer)
-    return response.send(orders)
+    const orders = await query.paginate(pagination.page, pagination.limit)
+    const transformedOrders = await transform.paginate(orders, Transformer)
+    return response.send(transformedOrders)
   }
 
   /**
@@ -62,7 +62,8 @@ class OrderController {
       }
 
       await trx.commit()
-      order = await transform.item(order, Transformer)
+      order = await Order.find(order.id)
+      order = await transform.include('user,items').item(order, Transformer)
       return response.status(201).send(order)
     } catch (error) {
       await trx.rollback()
@@ -81,7 +82,9 @@ class OrderController {
    */
   async show({ params, response, transform }) {
     let order = await Order.findOrFail(params.id)
-    order = await transform.item(order, Transformer)
+    order = await transform
+      .include('items,user,discounts')
+      .item(order, Transformer)
     return response.send(order)
   }
 
@@ -103,7 +106,9 @@ class OrderController {
       await service.updateItems(items)
       await order.save()
       await trx.commit()
-      order = await transform.item(order, Transformer)
+      order = await transform
+        .include('items,user,discounts')
+        .item(order, Transformer)
       return response.status(200).send(order)
     } catch (error) {
       await trx.rollback()
@@ -134,10 +139,10 @@ class OrderController {
     }
   }
 
-  async applyDiscount({ params: { id }, request, response }) {
+  async applyDiscount({ params: { id }, request, response, transform }) {
     const { code } = request.all()
     const coupon = await Coupon.findByOrFail('code', code.toUpperCase())
-    const order = await Order.findOrFail(id)
+    let order = await Order.findOrFail(id)
     // let discount = {}
     const info = {}
 
@@ -160,7 +165,9 @@ class OrderController {
         info.message = 'Invalid coupon!'
         info.success = false
       }
-
+      order = await transform
+        .include('item,user,discounts,coupons')
+        .item(order, Transformer)
       return response.send({ order, info })
     } catch (error) {
       response.status(400).send({ message: 'Bad Request' })

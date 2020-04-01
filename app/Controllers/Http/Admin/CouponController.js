@@ -42,13 +42,6 @@ class CouponController {
    * @param {Response} ctx.response
    */
   async store({ request, response, transform }) {
-    /**
-     * 1 - product - pode ser utilizado apenas em produtos específicos
-     * 2 - clients - pode ser utilizado apenas por clientes específicos
-     * 3 - clients and products - pode ser utilizados somente em produtos e clientes específicos
-     * 4 - pode ser utilizar por qualquer cliente em qualquer pedido
-     */
-
     const trx = Database.beginTransaction()
 
     const can_use_for = {
@@ -94,7 +87,9 @@ class CouponController {
 
       await coupon.save(trx)
       await trx.commit()
-      coupon = transform.item(coupon, Transformer)
+      coupon = await transform
+        .include('users,products')
+        .item(coupon, Transformer)
       return response.status(201).send(coupon)
     } catch (error) {
       await trx.rollback()
@@ -113,7 +108,9 @@ class CouponController {
    */
   async show({ params: { id }, response, transform }) {
     let coupon = await Coupon.findOrFail(id)
-    coupon = transform.item(coupon, Transformer)
+    coupon = transform
+      .include('products,users,orders')
+      .item(coupon, Transformer)
     return response.send(coupon)
   }
 
