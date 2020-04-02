@@ -21,7 +21,10 @@ class OrderTransformer extends BumblebeeTransformer {
   }
 
   transform(order) {
-    order = order.toJSON()
+    if (order !== undefined) {
+      order = order.toJSON()
+    }
+
     return {
       // add your transformation object here
       id: order.id,

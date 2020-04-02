@@ -30,17 +30,16 @@ class OrderController {
     const query = Order.query()
 
     if (status && id) {
-      query.where('status', status)
-      query.orWhere('id', 'LIKE', `%${id}%`)
+      query.where('status', status).orWhere('id', 'LIKE', `%${id}%`)
     } else if (status) {
       query.where('status', status)
     } else if (id) {
       query.where('id', 'LIKE', `%${id}%`)
     }
 
-    const orders = await query.paginate(pagination.page, pagination.limit)
-    const transformedOrders = await transform.paginate(orders, Transformer)
-    return response.send(transformedOrders)
+    let orders = await query.paginate(pagination.page, pagination.limit)
+    orders = await transform.paginate(orders, Transformer)
+    return response.send(orders)
   }
 
   /**
@@ -166,7 +165,7 @@ class OrderController {
         info.success = false
       }
       order = await transform
-        .include('item,user,discounts,coupons')
+        .include('items,user,discounts,coupons')
         .item(order, Transformer)
       return response.send({ order, info })
     } catch (error) {
