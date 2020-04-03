@@ -7,6 +7,14 @@
 /**
  * Resourceful controller for interacting with orders
  */
+const Order = use('App/Models/Order')
+const Coupon = use('App/Models/Coupon')
+const Discount = use('App/Models/Discount')
+const Transformer = use('App/Transformers/Admin/OrderTransformer')
+const Database = use('Database')
+const Service = use('App/Services/Order/OrderService')
+const Ws = use('Ws')
+
 class OrderController {
   /**
    * Show a list of all orders.
@@ -17,18 +25,24 @@ class OrderController {
    * @param {Response} ctx.response
    * @param {View} ctx.view
    */
-  async index({ request, response, view }) {}
+  async index({ request, response, transform, pagination, auth }) {
+    const client = await auth.getUser()
+    const number = request.input('number')
+    const query = Order.query()
+    if (number) {
+      query.where('id', 'LIKE', `${number}`)
+    }
 
-  /**
-   * Render a form to be used for creating a new order.
-   * GET orders/create
-   *
-   * @param {object} ctx
-   * @param {Request} ctx.request
-   * @param {Response} ctx.response
-   * @param {View} ctx.view
-   */
-  async create({ request, response, view }) {}
+    query.where('user_id', client.id)
+
+    const results = await query
+      .orderBy('id', 'DESC')
+      .paginate(pagination.page, pagination.limit)
+
+    const orders = await transform.paginate(results, Transformer)
+
+    return response.send(orders)
+  }
 
   /**
    * Create/save a new order.
@@ -38,7 +52,29 @@ class OrderController {
    * @param {Request} ctx.request
    * @param {Response} ctx.response
    */
-  async store({ request, response }) {}
+  async store({ request, response, auth, transform }) {
+    const trx = await Database.beginTransaction()
+    try {
+      const items = request.input('items')
+      const client = await auth.getUser()
+      let order = await Order.create({ user_id: client.id }, trx)
+      const service = new Service(order, trx)
+      if (items.length > 0) {
+        await service.syncItems(items)
+      }
+      await trx.commit()
+      order = await Order.find(order.id)
+      order = await transform.include('items').item(order, Transformer)
+      const topic = Ws.getChannel('notifications').topic('notifications')
+      if (topic) {
+        topic.broadcast('new:order', order)
+      }
+      return response.status(201).send(order)
+    } catch (error) {
+      await trx.rollback()
+      return response.status(400).send({ message: 'Bad Request' })
+    }
+  }
 
   /**
    * Display a single order.
@@ -49,18 +85,14 @@ class OrderController {
    * @param {Response} ctx.response
    * @param {View} ctx.view
    */
-  async show({ params, request, response, view }) {}
-
-  /**
-   * Render a form to update an existing order.
-   * GET orders/:id/edit
-   *
-   * @param {object} ctx
-   * @param {Request} ctx.request
-   * @param {Response} ctx.response
-   * @param {View} ctx.view
-   */
-  async edit({ params, request, response, view }) {}
+  async show({ params: { id }, response, transform, auth }) {
+    const client = await auth.getUser()
+    const result = await Order.query('user_id', client.id)
+      .where('id', id)
+      .firstOrFail()
+    const order = await transform.item(result, Transformer)
+    return response.send(order)
+  }
 
   /**
    * Update order details.
@@ -70,17 +102,74 @@ class OrderController {
    * @param {Request} ctx.request
    * @param {Response} ctx.response
    */
-  async update({ params, request, response }) {}
+  async update({ request, response, auth, transform }) {
+    const client = await auth.getUser()
+    let order = await Order.query()
+      .where('user_id', client.id)
+      .where('id', id)
+      .firstOrFail()
 
-  /**
-   * Delete a order with id.
-   * DELETE orders/:id
-   *
-   * @param {object} ctx
-   * @param {Request} ctx.request
-   * @param {Response} ctx.response
-   */
-  async destroy({ params, request, response }) {}
+    const trx = await Database.beginTransaction()
+    try {
+      const { items, status } = request.all()
+      order.merge({ user_id: client.id, status })
+      const service = new Service(order, trx)
+      service.updateItems(items)
+      await order.save(trx)
+      await trx.commit()
+      order = await transform
+        .include('items,coupons,discounts')
+        .item(order, Transformer)
+      return response.send(order)
+    } catch (error) {
+      await trx.rollback()
+      return response.status(400).send({ message: 'Bad Request' })
+    }
+  }
+
+  async applyDiscount({ request, response, params: { id }, transform, auth }) {
+    const { code } = request.all()
+    const coupon = await Coupon.findByOrFail('code', code.toUpperCase())
+    const client = await auth.getUser()
+    let order = await Order.query()
+      .where('user_id', client.id)
+      .where('id', id)
+      .firstOrFail()
+
+    const info = {}
+    try {
+      const service = new Service(order)
+      const canAddDiscount = await service.canApplyDiscount(coupon)
+      const orderDiscounts = await order.coupons().getCount()
+
+      const canApplyToOrder =
+        orderDiscounts < 1 || (orderDiscounts >= 1 && coupon.recursive)
+      if (canAddDiscount && canApplyToOrder) {
+        await Discount.findOrCreate({
+          order_id: order.id,
+          coupon_id: coupon.id
+        })
+        info.message = 'Cupom aplicado com sucesso!'
+        info.success = true
+      } else {
+        info.message = 'Não foi possível aplicar o cupom'
+        info.success = false
+      }
+      order = await transform
+        .include('coupons,items,discounts')
+        .item(order, Transformer)
+      return response.send({ order, info })
+    } catch (error) {
+      return response.status(400).send({ message: 'Bad Request' })
+    }
+  }
+
+  async removeDiscount({ request, response }) {
+    const { discount_id } = request.all()
+    const discount = await Discount.findOrFail(discount_id)
+    await discount.delete()
+    return response.status(204).send()
+  }
 }
 
 module.exports = OrderController
